@@ -1,78 +1,78 @@
 # TCG Collector Image Scraper
 
-Un script Python pour extraire les URLs des images de cartes depuis le site TCG Collector.
+A Python script to extract card image URLs from the TCG Collector website.
 
 ## Installation
 
-1. Cloner ce dépôt ou télécharger les fichiers
-2. Installer les dépendances :
+1. Clone this repository or download the files
+2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Utilisation
+## Usage
 
-Le script peut être lancé avec différentes options :
+The script can be run with different options:
 
 ```bash
 python tcg_scraper.py [OPTIONS]
 ```
 
-### Options disponibles
+### Available Options
 
-- `--order` : Ordre des dates de sortie (`oldToNew` ou `newToOld`)
-- `--per-page` : Nombre de cartes par page (`30`, `60`, ou `120`). Par défaut : `60`
-- `--search` : Terme de recherche pour les cartes (utilisez des guillemets pour les termes avec des espaces, ex: `--search "vstar universe"`)
-- `--start-page` : Première page à extraire (par défaut : 1)
-- `--end-page` : Dernière page à extraire (si non spécifié, toutes les pages disponibles seront extraites)
-- `--output` : Fichier de sortie pour les URLs des images (si non spécifié, sera généré automatiquement à partir du terme de recherche et de la date/heure)
-- `--jp` : Activer pour extraire les cartes japonaises (utilise l'URL "/cards/jp")
-- `--sort-by` : Trier par rareté (`rarityDesc` pour décroissant ou `rarityAsc` pour croissant)
-- `--force` : Ignorer la limite de pages initialement détectée, mais s'arrêtera automatiquement quand il n'y aura plus d'images
+- `--order`: Order of release dates (`oldToNew` or `newToOld`)
+- `--per-page`: Number of cards per page (`30`, `60`, or `120`). Default: `60`
+- `--search`: Search term for cards (use quotes for terms with spaces, e.g.: `--search "vstar universe"`)
+- `--start-page`: First page to extract (default: 1)
+- `--end-page`: Last page to extract (if not specified, all available pages will be extracted)
+- `--output`: Output file for image URLs (if not specified, will be automatically generated from the search term and date/time)
+- `--jp`: Enable to extract Japanese cards (uses the URL "/cards/jp")
+- `--sort-by`: Sort by rarity (`rarityDesc` for descending or `rarityAsc` for ascending)
+- `--force`: Ignore the initially detected page limit, but will automatically stop when there are no more images
 
-### Exemples
+### Examples
 
-Exemple 1: Extraire toutes les cartes en ordre chronologique (du plus ancien au plus récent)
+Example 1: Extract all cards in chronological order (from oldest to newest)
 ```bash
 python tcg_scraper.py --order oldToNew
 ```
 
-Exemple 2: Rechercher "Pikachu" avec 120 cartes par page, seulement les pages 1 à 3
+Example 2: Search for "Pikachu" with 120 cards per page, only pages 1 to 3
 ```bash
 python tcg_scraper.py --search "Pikachu" --per-page 120 --start-page 1 --end-page 3
 ```
 
-Exemple 3: Extraire les 5 premières pages des cartes les plus récentes
+Example 3: Extract the first 5 pages of the most recent cards
 ```bash
 python tcg_scraper.py --order newToOld --end-page 5
 ```
 
-Exemple 4: Extraire les cartes japonaises
+Example 4: Extract Japanese cards
 ```bash
 python tcg_scraper.py --jp
 ```
 
-Exemple 5: Extraire les cartes en ordre de rareté décroissante
+Example 5: Extract cards in descending rarity order
 ```bash
 python tcg_scraper.py --sort-by rarityDesc
 ```
 
-Exemple 6: Rechercher les cartes "VSTAR Universe" en japonais, ignorer la limite de pages détectée
+Example 6: Search for "VSTAR Universe" cards in Japanese, ignore the detected page limit
 ```bash
 python tcg_scraper.py --jp --search "vstar universe" --sort-by rarityDesc --end-page 20 --force
 ```
 
-## Sortie
+## Output
 
-Le script génère un fichier texte contenant une URL d'image par ligne, chaque ligne se terminant par un point-virgule (`;`). 
+The script generates a text file containing one image URL per line, with each line ending with a semicolon (`;`).
 
-Si aucun nom de fichier n'est spécifié avec `--output`, le script génère automatiquement un nom de fichier basé sur:
-- Le terme de recherche (convertit en minuscules et remplace les caractères spéciaux par des underscores)
-- Si l'option `--jp` est utilisée
-- La date et l'heure actuelles (au format YYYY-MM-DD_HH-MM-SS)
+If no filename is specified with `--output`, the script automatically generates a filename based on:
+- The search term (converted to lowercase and replacing special characters with underscores)
+- Whether the `--jp` option is used
+- The current date and time (in YYYY-MM-DD_HH-MM-SS format)
 
-Exemples de noms de fichiers générés:
-- `vstar_universe_jp_2023-08-01_14-30-45.txt` (pour une recherche "vstar universe" avec option `--jp`)
-- `pikachu_2023-08-01_14-30-45.txt` (pour une recherche "Pikachu")
-- `all-cards_2023-08-01_14-30-45.txt` (si aucun terme de recherche n'est spécifié) 
+Examples of generated filenames:
+- `vstar_universe_jp_2023-08-01_14-30-45.txt` (for a "vstar universe" search with the `--jp` option)
+- `pikachu_2023-08-01_14-30-45.txt` (for a "Pikachu" search)
+- `all-cards_2023-08-01_14-30-45.txt` (if no search term is specified) 
