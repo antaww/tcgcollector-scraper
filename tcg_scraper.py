@@ -7,6 +7,7 @@ from urllib.parse import urlencode, quote_plus
 import os
 import datetime
 import re
+import csv
 
 
 class TCGCollectorScraper:
@@ -27,8 +28,31 @@ class TCGCollectorScraper:
             page_params['page'] = page_num
         
         # Construct the URL with parameters
-        query_string = urlencode(page_params)
-        url = f"{base_url}?{query_string}"
+        try:
+            # Use quote_plus directly for the card search to ensure proper encoding
+            if 'cardSearch' in page_params:
+                search_term = page_params.pop('cardSearch')  # Remove from params
+                # Manually replace apostrophes in the search term
+                search_term = search_term.replace("'", "'")
+                
+                query_parts = [f"{k}={quote_plus(str(v))}" for k, v in page_params.items()]
+                # Add the properly encoded search term
+                query_parts.append(f"cardSearch={quote_plus(search_term)}")
+                query_string = "&".join(query_parts)
+            else:
+                query_string = urlencode(page_params)
+                
+            url = f"{base_url}?{query_string}"
+            
+            # Direct string replacement in the final URL - force apostrophes to be correctly encoded
+            url = url.replace("%E2%80%99", "%27")  # Replace encoded fancy apostrophe with standard one
+        except Exception as e:
+            print(f"Error encoding URL parameters: {e}")
+            # Fallback to standard encoding
+            query_string = urlencode(page_params)
+            url = f"{base_url}?{query_string}"
+            # Even in fallback, fix the apostrophes
+            url = url.replace("%E2%80%99", "%27")
         
         print(f"Scraping page {page_num}: {url}")
         
@@ -243,6 +267,162 @@ class TCGCollectorScraper:
         
         print(f"Scraped {len(all_image_urls)} image URLs and saved to {output_file}")
         return all_image_urls
+    
+    def scrape_csv(self, csv_filename, jp=False, output_file=None):
+        """
+        Scrape cards from TCG Collector based on a CSV file.
+        
+        Args:
+            csv_filename: Name of the CSV file in the 'datas' folder
+            jp: Whether to scrape Japanese cards
+            output_file: File to save the image URLs (if None, will be generated automatically)
+        """
+        # Construct the full path to the CSV file
+        csv_path = os.path.join('datas', csv_filename)
+        
+        if not os.path.exists(csv_path):
+            print(f"Error: CSV file '{csv_path}' not found")
+            return []
+        
+        try:
+            # Read the CSV file with standard csv module
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                # Skip the "sep=" line if it exists
+                first_line = f.readline()
+                if not first_line.startswith('"sep='):
+                    # If it's not a separator line, we need to go back to the beginning
+                    f.seek(0)
+                
+                # Read the rest as CSV
+                reader = csv.DictReader(f)
+                
+                # Generate output filename if not provided
+                if output_file is None:
+                    now = datetime.datetime.now()
+                    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+                    output_file = f"csv_scrape_{timestamp}.txt"
+                    print(f"Generated output filename: {output_file}")
+                
+                # Set the base URL based on the jp parameter
+                base_url = f"{self.base_url}/jp" if jp else self.base_url
+                
+                # Prepare for scraping
+                all_image_urls = []
+                failed_cards = []
+                success_count = 0
+                fail_count = 0
+                
+                # Process each row in the CSV
+                for index, row in enumerate(reader):
+                    try:
+                        # Normalize the card name by replacing fancy apostrophes with standard ones
+                        card_name = row['Card Name']
+                        # Direct replacement of common problematic characters
+                        card_name = card_name.replace(''', "'").replace(''', "'").replace('"', '"').replace('"', '"')
+                        
+                        # Get only the part before slash or space in card number
+                        full_card_number = row['Card Number'].strip()
+                        
+                        # Step 1: Split by space or / and take the first part
+                        card_number_temp = re.split(r'[ /]', full_card_number)[0].strip()
+                        
+                        # Step 2: Extract only digits at the beginning 
+                        # (matches 123 from 123metal but leaves 123 as 123)
+                        match = re.match(r'^(\d+)', card_number_temp)
+                        if match:
+                            card_number = match.group(1)
+                        else:
+                            # If no digits found, use the original value
+                            card_number = card_number_temp
+                        
+                        # Check if the card number was truncated
+                        was_truncated = card_number != full_card_number
+                        
+                        # Combine card name and number for search
+                        search_term = f"{card_name} {card_number}"
+                        
+                        # Log with or without "Full: " depending on whether the number was truncated
+                        if was_truncated:
+                            print(f"Searching for: {search_term} (Full: {card_name} {full_card_number})")
+                        else:
+                            print(f"Searching for: {search_term}")
+                        
+                        # Set up the parameters
+                        params = {
+                            'displayAs': 'images',
+                            'cardsPerPage': 60,
+                            'cardSearch': search_term,
+                            'releaseDateOrder': 'newToOld'  # Add this to improve search results
+                        }
+                        
+                        # Scrape just the first page
+                        image_urls = self.scrape_page(params, 1, base_url)
+                        
+                        if image_urls:
+                            # Take only the first image
+                            first_image = image_urls[0]
+                            all_image_urls.append(first_image)
+                            print(f"Found image for {search_term}")
+                            success_count += 1
+                        else:
+                            print(f"Error: No image found for {search_term}")
+                            failed_card = {
+                                'index': index + 1,  # +1 to account for 0-based indexing
+                                'card_name': card_name,
+                                'card_number': card_number,
+                                'search_term': search_term
+                            }
+                            
+                            # Only add full card number if it was truncated
+                            if was_truncated:
+                                failed_card['full_card_number'] = full_card_number
+                                
+                            failed_cards.append(failed_card)
+                            fail_count += 1
+                        
+                        # Be nice to the server
+                        time.sleep(1)
+                        
+                    except Exception as e:
+                        print(f"Error processing row {index}: {e}")
+                        failed_cards.append({
+                            'index': index + 1,  # +1 to account for 0-based indexing
+                            'card_name': row.get('Card Name', 'Unknown'),
+                            'card_number': row.get('Card Number', 'Unknown'),
+                            'error': str(e)
+                        })
+                        fail_count += 1
+                
+                # Save the image URLs to a file
+                with open(output_file, 'w') as f:
+                    for url in all_image_urls:
+                        f.write(f"{url};\n")
+                
+                # Print summary
+                print("\n" + "="*50)
+                print("SCRAPING SUMMARY")
+                print("="*50)
+                print(f"Total cards processed: {success_count + fail_count}")
+                print(f"Successfully scraped: {success_count}")
+                print(f"Failed to scrape: {fail_count}")
+                
+                if failed_cards:
+                    print("\nDetails of failed cards:")
+                    for card in failed_cards:
+                        if 'error' in card:
+                            print(f"  Row {card['index']}: {card['card_name']} {card['card_number']} - Error: {card['error']}")
+                        elif 'full_card_number' in card:
+                            print(f"  Row {card['index']}: {card['card_name']} {card['card_number']} (Full: {card['full_card_number']}) - No image found")
+                        else:
+                            print(f"  Row {card['index']}: {card['search_term']} - No image found")
+                
+                print(f"\nAll image URLs saved to {output_file}")
+                
+                return all_image_urls
+                
+        except Exception as e:
+            print(f"Error processing CSV file: {e}")
+            return []
 
 
 def parse_args():
@@ -275,6 +455,9 @@ def parse_args():
     parser.add_argument('--force', action='store_true',
                         help='Ignore the initially detected page limit and try to scrape up to end-page')
     
+    parser.add_argument('--csv', type=str,
+                        help='CSV file in the datas folder to read card information from')
+    
     return parser.parse_args()
 
 
@@ -282,17 +465,27 @@ def main():
     args = parse_args()
     
     scraper = TCGCollectorScraper()
-    scraper.scrape(
-        release_date_order=args.order,
-        cards_per_page=args.per_page,
-        card_search=args.search,
-        start_page=args.start_page,
-        end_page=args.end_page,
-        output_file=args.output,
-        jp=args.jp,
-        sort_by=args.sort_by,
-        force_end_page=args.force
-    )
+    
+    if args.csv:
+        # CSV mode - scrape cards from CSV file
+        scraper.scrape_csv(
+            csv_filename=args.csv,
+            jp=args.jp,
+            output_file=args.output
+        )
+    else:
+        # Regular mode - scrape with search parameters
+        scraper.scrape(
+            release_date_order=args.order,
+            cards_per_page=args.per_page,
+            card_search=args.search,
+            start_page=args.start_page,
+            end_page=args.end_page,
+            output_file=args.output,
+            jp=args.jp,
+            sort_by=args.sort_by,
+            force_end_page=args.force
+        )
 
 
 if __name__ == "__main__":

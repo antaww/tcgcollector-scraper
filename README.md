@@ -30,6 +30,7 @@ python tcg_scraper.py [OPTIONS]
 - `--jp`: Enable to extract Japanese cards (uses the URL "/cards/jp")
 - `--sort-by`: Sort by rarity (`rarityDesc` for descending or `rarityAsc` for ascending)
 - `--force`: Ignore the initially detected page limit, but will automatically stop when there are no more images
+- `--csv`: CSV file in the "datas" folder to read card information from (see CSV Scraping below)
 
 ### Examples
 
@@ -63,6 +64,30 @@ Example 6: Search for "VSTAR Universe" cards in Japanese, ignore the detected pa
 python tcg_scraper.py --jp --search "vstar universe" --sort-by rarityDesc --end-page 20 --force
 ```
 
+Example 7: Extract card images from a CSV file, searching for Japanese cards
+```bash
+python tcg_scraper.py --csv pokemon.csv
+```
+
+## CSV Scraping
+
+The script can extract card images based on a CSV file in the "datas" folder. The CSV file should have the following structure:
+
+```
+"sep=,"
+Card Name,Card Number
+Absol ex,135
+...
+```
+
+The script will:
+1. Read the CSV file and extract the "Card Name" and "Card Number" columns
+2. Process the card number to handle formats like "019 / 184" (taking only "019")
+3. Search for each card on TCG Collector using the combination of card name and number
+4. Save the first image URL found for each card to the output file
+
+When using CSV scraping, the script will show a summary at the end, indicating how many cards were successfully scraped and which ones failed.
+
 ## Output
 
 The script generates a text file containing one image URL per line, with each line ending with a semicolon (`;`).
@@ -75,4 +100,5 @@ If no filename is specified with `--output`, the script automatically generates 
 Examples of generated filenames:
 - `vstar_universe_jp_2023-08-01_14-30-45.txt` (for a "vstar universe" search with the `--jp` option)
 - `pikachu_2023-08-01_14-30-45.txt` (for a "Pikachu" search)
-- `all-cards_2023-08-01_14-30-45.txt` (if no search term is specified) 
+- `all-cards_2023-08-01_14-30-45.txt` (if no search term is specified)
+- `csv_scrape_2023-08-01_14-30-45.txt` (for a CSV-based scraping) 

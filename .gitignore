@@ -1,7 +1,7 @@
-# Fichiers générés par le script
+# Generated files by the script
 *_20*.txt
 
-# Environnement Python
+# Python environment
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,13 +23,17 @@ var/
 .installed.cfg
 *.egg
 
-# Environnements virtuels
+# Virtual environments
 venv/
 ENV/
 env/
 
-# IDEs et éditeurs
+# IDEs and editors
 .idea/
 .vscode/
 *.swp
 *.swo 
+
+# Datas except example.csv
+datas/*.csv
+!datas/example.csv
